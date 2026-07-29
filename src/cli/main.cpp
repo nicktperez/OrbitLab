@@ -28,7 +28,8 @@ std::string readText(const std::filesystem::path& path) {
     }
     stream.seekg(0, std::ios::end);
     const auto size = stream.tellg();
-    constexpr std::streamoff maximumSize = 64 * 1024 * 1024;
+    constexpr std::streamoff maximumSize =
+        std::streamoff{64} * 1024 * 1024;
     if (size < 0 || size > maximumSize) {
         throw std::runtime_error("Input file exceeds the 64 MiB safety limit");
     }

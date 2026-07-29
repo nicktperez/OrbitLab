@@ -19,15 +19,25 @@ Vec3 Camera::position() const noexcept {
 }
 
 Vec3 Camera::forward() const noexcept {
-    return (center_ - position()).normalized();
+    const double cosineElevation = std::cos(elevation_);
+    return {
+        -cosineElevation * std::cos(azimuth_),
+        -cosineElevation * std::sin(azimuth_),
+        -std::sin(elevation_),
+    };
 }
 
 Vec3 Camera::right() const noexcept {
-    return forward().cross({0.0, 0.0, 1.0}).normalized();
+    return {-std::sin(azimuth_), std::cos(azimuth_), 0.0};
 }
 
 Vec3 Camera::up() const noexcept {
-    return right().cross(forward()).normalized();
+    const double sineElevation = std::sin(elevation_);
+    return {
+        -sineElevation * std::cos(azimuth_),
+        -sineElevation * std::sin(azimuth_),
+        std::cos(elevation_),
+    };
 }
 
 std::optional<ProjectedPoint> Camera::project(
@@ -67,9 +77,10 @@ Vec3 Camera::rayDirection(
     const double width,
     const double height) const noexcept {
     const double focal = focalLength(height);
-    return (forward() + right() * ((screen.x - width * 0.5) / focal) +
-            up() * (-(screen.y - height * 0.5) / focal))
-        .normalized();
+    const Vec3 direction =
+        forward() + right() * ((screen.x - width * 0.5) / focal) +
+        up() * (-(screen.y - height * 0.5) / focal);
+    return direction * (1.0 / std::sqrt(direction.lengthSquared()));
 }
 
 Vec3 Camera::screenToWorldOnPlane(

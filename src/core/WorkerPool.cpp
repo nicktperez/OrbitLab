@@ -23,7 +23,7 @@ public:
             requestedWorkerCount == 0 ? automaticWorkers : requestedWorkerCount;
         workers_.reserve(count);
         for (unsigned int index = 0; index < count; ++index) {
-            workers_.emplace_back([this](const std::stop_token stopToken) {
+            workers_.emplace_back([this](const std::stop_token& stopToken) {
                 workerLoop(stopToken);
             });
         }
@@ -103,7 +103,7 @@ private:
         condition_.notify_one();
     }
 
-    void workerLoop(const std::stop_token stopToken) {
+    void workerLoop(const std::stop_token& stopToken) {
         while (!stopToken.stop_requested()) {
             std::function<void()> task;
             {
