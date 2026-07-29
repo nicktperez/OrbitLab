@@ -1,0 +1,13 @@
+{
+  "format": "OrbitLab",
+  "version": 2,
+  "elapsedTime": 0.0,
+  "settings": {
+    "gravitationalConstant": 1.0,
+    "softeningLength": 0.001,
+    "fixedTimeStep": 0.001,
+    "collisionMode": "none",
+    "trailsEnabled": true
+  },
+  "bodies": []
+}

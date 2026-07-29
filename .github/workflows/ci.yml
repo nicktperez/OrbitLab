@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            generator: Ninja
+          - os: ubuntu-latest
+            generator: Ninja
+          - os: windows-latest
+            generator: Ninja
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux SDL build prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libdbus-1-dev libdecor-0-dev libdrm-dev libgbm-dev \
+            libgl-dev libibus-1.0-dev libpulse-dev libudev-dev libunwind-dev \
+            libwayland-dev libx11-dev libxcursor-dev libxext-dev libxfixes-dev \
+            libxi-dev libxinerama-dev libxkbcommon-dev libxrandr-dev libxss-dev \
+            libxtst-dev ninja-build
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G "${{ matrix.generator }}"
+          -DCMAKE_BUILD_TYPE=Release
+          -DORBITLAB_BUILD_APP=ON
+          -DORBITLAB_BUILD_TESTS=ON
+          -DORBITLAB_BUILD_BENCHMARK=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: ASan + UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang ninja-build
+
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset asan-ubsan
+
+      - name: Build
+        run: cmake --build --preset asan-ubsan --parallel
+
+      - name: Test
+        run: ctest --preset asan-ubsan
+
+  static-analysis:
+    name: clang-tidy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang clang-tidy ninja-build
+
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset clang-tidy
+
+      - name: Analyze while building
+        run: cmake --build --preset clang-tidy --parallel
+
+  fuzz-smoke:
+    name: JSON fuzz smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang ninja-build
+
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset fuzz
+
+      - name: Build
+        run: cmake --build --preset fuzz --parallel
+
+      - name: Fuzz saved simulations
+        run: >
+          ./build/fuzz/orbitlab_json_fuzzer
+          -max_total_time=20
+          -timeout=2
+          fuzz/corpus
