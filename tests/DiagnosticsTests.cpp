@@ -22,11 +22,11 @@ TEST_CASE("System diagnostics report conserved quantities", "[diagnostics]") {
 TEST_CASE("Orbital elements identify a near-circular Earth orbit", "[diagnostics][orbit]") {
     Simulation simulation;
     loadPreset(simulation, Preset::SunEarth);
-    const auto elements = simulation.orbitalElements(simulation.bodies()[1].id);
-    REQUIRE(elements);
-    REQUIRE(elements->primaryBodyId == simulation.bodies()[0].id);
-    REQUIRE(elements->bound);
-    REQUIRE(elements->eccentricity < 1.0e-4);
-    REQUIRE(elements->semiMajorAxis == Catch::Approx(1.0).margin(1.0e-5));
-    REQUIRE(elements->period == Catch::Approx(2.0 * std::numbers::pi).margin(1.0e-4));
+    const auto elements =
+        simulation.orbitalElements(simulation.bodies()[1].id).value();
+    REQUIRE(elements.primaryBodyId == simulation.bodies()[0].id);
+    REQUIRE(elements.bound);
+    REQUIRE(elements.eccentricity < 1.0e-4);
+    REQUIRE(elements.semiMajorAxis == Catch::Approx(1.0).margin(1.0e-5));
+    REQUIRE(elements.period == Catch::Approx(2.0 * std::numbers::pi).margin(1.0e-4));
 }

@@ -109,8 +109,10 @@ function(orbitlab_enable_warnings target)
 endfunction()
 function(orbitlab_enable_analysis target)
     if(ORBITLAB_ENABLE_CLANG_TIDY)
+        set(ORBITLAB_TARGET_CLANG_TIDY_COMMAND
+            ${ORBITLAB_CLANG_TIDY_COMMAND} ${ARGN})
         set_property(TARGET ${target} PROPERTY
-            CXX_CLANG_TIDY "${ORBITLAB_CLANG_TIDY_COMMAND}")
+            CXX_CLANG_TIDY "${ORBITLAB_TARGET_CLANG_TIDY_COMMAND}")
     endif()
 endfunction()
 orbitlab_enable_warnings(orbitlab_core)
@@ -212,7 +214,11 @@ if(ORBITLAB_BUILD_TESTS)
     target_link_libraries(orbitlab_tests PRIVATE
         orbitlab_core Catch2::Catch2WithMain orbitlab_instrumentation)
     orbitlab_enable_warnings(orbitlab_tests)
-    orbitlab_enable_analysis(orbitlab_tests)
+    # Catch2 combines enum flags in assertion macros. Clang's optional enum-range
+    # analyzer reports those third-party internals even though the combinations
+    # are intentional; keep every other configured check active for test code.
+    orbitlab_enable_analysis(orbitlab_tests
+        --checks=-clang-analyzer-optin.core.EnumCastOutOfRange)
     include(Catch)
     catch_discover_tests(orbitlab_tests)
 endif()
