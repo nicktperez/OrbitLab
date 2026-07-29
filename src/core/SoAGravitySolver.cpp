@@ -28,6 +28,11 @@ struct BodyArrays {
     std::vector<double> mass;
 };
 
+struct ForceParameters {
+    double gravitationalConstant;
+    double softeningSquared;
+};
+
 void validateParameters(
     const double gravitationalConstant,
     const double softeningLength) {
@@ -44,8 +49,7 @@ void accumulateTargets(
     std::vector<Vec3>& result,
     const std::size_t first,
     const std::size_t last,
-    const double gravitationalConstant,
-    const double softeningSquared) {
+    const ForceParameters parameters) {
     for (std::size_t target = first; target < last; ++target) {
         double accelerationX = 0.0;
         double accelerationY = 0.0;
@@ -58,12 +62,12 @@ void accumulateTargets(
             const double dy = bodies.y[source] - bodies.y[target];
             const double dz = bodies.z[source] - bodies.z[target];
             const double distanceSquared =
-                dx * dx + dy * dy + dz * dz + softeningSquared;
+                dx * dx + dy * dy + dz * dz + parameters.softeningSquared;
             if (distanceSquared == 0.0) {
                 continue;
             }
             const double inverseDistance = 1.0 / std::sqrt(distanceSquared);
-            const double scale = gravitationalConstant * bodies.mass[source] *
+            const double scale = parameters.gravitationalConstant * bodies.mass[source] *
                                  inverseDistance * inverseDistance * inverseDistance;
             accelerationX += dx * scale;
             accelerationY += dy * scale;
@@ -87,8 +91,9 @@ std::vector<Vec3> SoADirectGravitySolver::accelerations(
         result,
         0,
         bodies.size(),
-        gravitationalConstant,
-        softeningLength * softeningLength);
+        ForceParameters{
+            .gravitationalConstant = gravitationalConstant,
+            .softeningSquared = softeningLength * softeningLength});
     return result;
 }
 
@@ -112,8 +117,9 @@ std::vector<Vec3> ThreadedSoAGravitySolver::accelerations(
                 result,
                 first,
                 last,
-                gravitationalConstant,
-                softeningLength * softeningLength);
+                ForceParameters{
+                    .gravitationalConstant = gravitationalConstant,
+                    .softeningSquared = softeningLength * softeningLength});
         });
     return result;
 }

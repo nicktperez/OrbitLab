@@ -180,18 +180,22 @@ void Simulation::integrateSymplecticEuler(const double deltaTime) {
 
 void Simulation::integrateRungeKutta4(const double deltaTime) {
     const std::vector<Body> original = bodies_;
+    struct StateSlope {
+        const std::vector<Vec3>& position;
+        const std::vector<Vec3>& velocity;
+    };
+
     const auto accelerationFor = [&](const std::vector<Body>& state) {
         return solver_->accelerations(
             state, settings_.gravitationalConstant, settings_.softeningLength);
     };
     const auto stagedState = [&](
-                                 const std::vector<Vec3>& positionSlope,
-                                 const std::vector<Vec3>& velocitySlope,
+                                 const StateSlope slopes,
                                  const double scale) {
         std::vector<Body> state = original;
         for (std::size_t index = 0; index < state.size(); ++index) {
-            state[index].position += positionSlope[index] * scale;
-            state[index].velocity += velocitySlope[index] * scale;
+            state[index].position += slopes.position[index] * scale;
+            state[index].velocity += slopes.velocity[index] * scale;
         }
         return state;
     };
@@ -202,23 +206,27 @@ void Simulation::integrateRungeKutta4(const double deltaTime) {
     }
     const auto k1Velocity = accelerationFor(original);
 
-    const auto secondState =
-        stagedState(k1Position, k1Velocity, deltaTime * 0.5);
+    const auto secondState = stagedState(
+        StateSlope{.position = k1Position, .velocity = k1Velocity},
+        deltaTime * 0.5);
     std::vector<Vec3> k2Position(original.size());
     for (std::size_t index = 0; index < original.size(); ++index) {
         k2Position[index] = secondState[index].velocity;
     }
     const auto k2Velocity = accelerationFor(secondState);
 
-    const auto thirdState =
-        stagedState(k2Position, k2Velocity, deltaTime * 0.5);
+    const auto thirdState = stagedState(
+        StateSlope{.position = k2Position, .velocity = k2Velocity},
+        deltaTime * 0.5);
     std::vector<Vec3> k3Position(original.size());
     for (std::size_t index = 0; index < original.size(); ++index) {
         k3Position[index] = thirdState[index].velocity;
     }
     const auto k3Velocity = accelerationFor(thirdState);
 
-    const auto fourthState = stagedState(k3Position, k3Velocity, deltaTime);
+    const auto fourthState = stagedState(
+        StateSlope{.position = k3Position, .velocity = k3Velocity},
+        deltaTime);
     std::vector<Vec3> k4Position(original.size());
     for (std::size_t index = 0; index < original.size(); ++index) {
         k4Position[index] = fourthState[index].velocity;
@@ -353,7 +361,7 @@ std::optional<std::string> Simulation::validateSettings(const SimulationSettings
     if (settings.threadWorkerCount > 256) {
         return "Worker thread count must be zero (automatic) or at most 256";
     }
-    if (const std::string error =
+    if (std::string error =
             AdaptiveFidelityController::validate(settings.adaptiveFidelity);
         !error.empty()) {
         return error;
